@@ -1,0 +1,37 @@
+{
+  "name": "connectkit-nextjs-typescript",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "post-update": "yarn upgrade --latest"
+  },
+  "dependencies": {
+    "connectkit": "1.0.0",
+    "ethers": "5.7.1",
+    "next": "12.2.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "wagmi": "0.7.15"
+  },
+  "devDependencies": {
+    "@types/node": "18.7.18",
+    "@types/react": "18.0.0",
+    "@types/react-dom": "18.0.0",
+    "eslint": "8.23.1",
+    "eslint-config-next": "12.3.0",
+    "typescript": "4.8.3"
+  },
+  "license": "MIT",
+  "keywords": [
+    "connectkit",
+    "wagmi",
+    "ethers",
+    "web3",
+    "next",
+    "nextjs",
+    "typescript"
+  ],
+  "description": "This example shows the most basic idea behind using ConnectKit within Next with TypeScript."
+}

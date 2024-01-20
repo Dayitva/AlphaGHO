@@ -6,7 +6,8 @@ import {
   UiIncentiveDataProvider,
   ChainId,
   Pool,
-  EthereumTransactionTypeExtended
+  EthereumTransactionTypeExtended,
+  InterestRate,
 } from "@aave/contract-helpers";
 import * as markets from "@bgd-labs/aave-address-book";
 import {
@@ -16,7 +17,7 @@ import {
   formatUserSummaryAndIncentives,
 } from "@aave/math-utils";
 import dayjs from "dayjs";
-import { useAccount } from "wagmi";
+import { useAccount, useSignTypedData, useSignMessage } from "wagmi";
 
 // Make sure that this component is wrapped with ConnectKitProvider
 const MyComponent = () => {
@@ -29,70 +30,100 @@ const MyComponent = () => {
 const MAINNET_API = "https://eth-mainnet.public.blastapi.io";
 const SEPOLIA_API = "https://eth-sepolia.public.blastapi.io";
 
-const GHO_SEPOLIA = "0xc4bF5CbDaBE595361438F8c6a187bDc330539c60";
-const DAI_SEPOLIA = "0xFF34B3d4Aee8ddCd6F9AFFFB6Fe49bD371b8a357";
+const GHO_SEPOLIA = markets.AaveV3Sepolia.ASSETS.GHO.UNDERLYING;
+const DAI_SEPOLIA = markets.AaveV3Sepolia.ASSETS.DAI.UNDERLYING;
+const USDC_SEPOLIA = markets.AaveV3Sepolia.ASSETS.USDC.UNDERLYING;
+const USDT_SEPOLIA = markets.AaveV3Sepolia.ASSETS.USDT.UNDERLYING;
 
-const AAVE_POOL_SEPOLIA = "0x6Ae43d3271ff6888e7Fc43Fd7321a503ff738951";
-const WETH_GATEWAY = "test";
+const AAVE_POOL_SEPOLIA = markets.AaveV3Sepolia.POOL;
+const WETH_GATEWAY_SEPOLIA = markets.AaveV3Sepolia.WETH_GATEWAY;
 
-const test = async () => {
+const test = async (address: any) => {
+  // const { signTypedData } = useSignTypedData();
+  // const { signMessage } = useSignMessage();
   const provider = new ethers.providers.Web3Provider((window as any).ethereum);
   const signer = provider.getSigner();
-  const { address, isConnecting, isDisconnected } = useAccount();
   console.log(provider);
   console.log(signer);
   console.log(await signer.getAddress());
   console.log(address);
 
-//   async function submitTransaction({ provider : ethers.providers.Web3Provider, tx : EthereumTransactionTypeExtended }) {
-//     const extendedTxData = await tx.tx();
-//     console.log(tx, extendedTxData);
-//     const { from, ...txData } = extendedTxData;
-//     const signer = provider.getSigner(from);
-//     const txResponse = await signer.sendTransaction({
-//       ...txData,
-//       value: txData.value ? BigNumber.from(txData.value) : undefined,
-//     });
-//   }
+  async function submitTransaction({
+    provider,
+    tx,
+  }: {
+    provider: ethers.providers.Web3Provider;
+    tx: EthereumTransactionTypeExtended;
+  }) {
+    console.log(tx);
+    const extendedTxData = await tx.tx();
+    console.log(tx, extendedTxData);
+    const { from, ...txData } = extendedTxData;
+    const signer = provider.getSigner(from);
+    const txResponse = await signer.sendTransaction({
+      ...txData,
+      value: txData.value ? BigNumber.from(txData.value) : undefined,
+      gasLimit: ethers.utils.parseUnits('0.1', 'ether'),
+    });
+  }
 
-//   const pool = new Pool(provider, {
-//     POOL: AAVE_POOL_SEPOLIA,
-//     WETH_GATEWAY: WETH_GATEWAY,
-//   });
+  const pool = new Pool(provider, {
+    POOL: AAVE_POOL_SEPOLIA,
+    WETH_GATEWAY: WETH_GATEWAY_SEPOLIA,
+  });
 
-//   /*
-// - @param `user` The ethereum address that will make the deposit 
-// - @param `reserve` The ethereum address of the reserve 
-// - @param `amount` The amount to be deposited 
-// - @param `deadline` Expiration of signature in seconds, for example, 1 hour = Math.floor(Date.now() / 1000 + 3600).toString()
-// */
-//   const dataToSign = await pool.signERC20Approval({
-//     user: user,
-//     reserve: DAI_SEPOLIA,
-//     amount: ethers.utils.parseUnits("1", 18),
-//     deadline: Math.floor(Date.now() / 1000 + 3600).toString(),
-//   });
+  console.log(pool);
 
-//   console.log(dataToSign);
+  const executePlan = async () => {
+    const dataToSign = await pool.signERC20Approval({
+      user: address,
+      reserve: USDC_SEPOLIA,
+      amount: "1",
+      deadline: Math.floor(Date.now() / 1000 + 3600).toString(),
+    });
+  
+    console.log(dataToSign);
+  
+    const signature = await provider.send("eth_signTypedData_v4", [
+      address,
+      dataToSign,
+    ]);
+  
+    console.log(signature);
+  
+    const txs: EthereumTransactionTypeExtended[] = await pool.supplyWithPermit({
+      user: address,
+      reserve: USDC_SEPOLIA,
+      amount: "1",
+      signature: signature,
+      onBehalfOf: address,
+      deadline: Math.floor(Date.now() / 1000 + 3600).toString(),
+    });
 
-//   // const signature = await wallet.provider.send("eth_signTypedData_v4", [
-//   //   user,
-//   //   dataToSign,
-//   // ]);
+    
+    // const txs: EthereumTransactionTypeExtended[] = await pool.supply({
+    //   user: address,
+    //   reserve: USDC_SEPOLIA,
+    //   amount: "1",
+    //   onBehalfOf: address,
+    // });
 
-//   const signature = await provider.signMessage(dataToSign);
+    console.log(txs);
 
-//   console.log(signature);
+    // const txs: EthereumTransactionTypeExtended[] = await pool.borrow({
+    //   user: address,
+    //   reserve: GHO_SEPOLIA,
+    //   amount: "1",
+    //   interestRateMode: InterestRate.Variable,
+    //   onBehalfOf: address,
+    // });
 
-//   const txs = await pool.supplyWithPermit({
-//     user: user,
-//     reserve: "0xc4bF5CbDaBE595361438F8c6a187bDc330539c60",
-//     amount: ethers.utils.parseUnits("1", 18),
-//     signature: signature,
-//     onBehalfOf: user,
-//   });
+    submitTransaction({ provider: provider, tx: txs[0] });
+  };
 
-//   submitTransaction({ provider: wallet.provider, tx: txs[0] });
+  executePlan().catch((error) => {
+    console.error(error);
+  });
 };
 
 const IndexPage: NextPage = () => {
@@ -106,11 +137,13 @@ const IndexPage: NextPage = () => {
         height: "100vh",
       }}
     >
-      Hi there! <br />
-      <br />
-      <Avatar />
+      Hi there!
       <ConnectKitButton />
-      <button onClick={test}>Test</button>
+      <button
+        onClick={() => test("0x039b882C4aF8Dc66c906dA6a44c6e2A561BB5223")}
+      >
+        Test
+      </button>
     </div>
   );
 };

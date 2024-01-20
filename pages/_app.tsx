@@ -1,20 +1,29 @@
 import { AppProps } from "next/app";
 
-import { WagmiConfig, createClient, chain } from "wagmi";
-import { ConnectKitProvider, getDefaultClient } from "connectkit";
+import { WagmiConfig, createConfig } from "wagmi";
+import { mainnet, sepolia, polygon, optimism, arbitrum } from "wagmi/chains";
+import { ConnectKitProvider, getDefaultConfig } from "connectkit";
 
-const client = createClient(
-  getDefaultClient({
-    appName: "ConnectKit Next.js demo",
-    alchemyId: process.env.NEXT_PUBLIC_ALCHEMY_ID,
-    //infuraId: process.env.INFURA_ID,
-    chains: [chain.mainnet, chain.polygon, chain.optimism, chain.arbitrum]
+const chains = [mainnet, sepolia, polygon, optimism, arbitrum];
+
+const config = createConfig(
+  getDefaultConfig({
+    appName: "AlphaGHO",
+    // alchemyId: process.env.NEXT_PUBLIC_ALCHEMY_ID,
+    infuraId: process.env.INFURA_ID,
+    walletConnectProjectId: process.env.WALLETCONNECT_PROJECT_ID || "test",
+    chains: chains,
+
+    // Optional
+    appDescription: "Making Payments and Arbitrage easier for GHO on Aave",
+    appUrl: "https://alphagho.com",
+    appIcon: "https://family.co/logo.png",
   })
 );
 
 const App = ({ Component, pageProps }: AppProps) => {
   return (
-    <WagmiConfig client={client}>
+    <WagmiConfig config={config}>
       <ConnectKitProvider>
         <Component {...pageProps} />
       </ConnectKitProvider>

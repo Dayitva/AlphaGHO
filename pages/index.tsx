@@ -12,6 +12,7 @@ const IndexPage: NextPage = () => {
         height: "100vh"
       }}
     >
+      Hi there! <br/><br/>
       <ConnectKitButton />
     </div>
   );

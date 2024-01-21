@@ -38,6 +38,8 @@ const USDT_SEPOLIA = markets.AaveV3Sepolia.ASSETS.USDT.UNDERLYING;
 const AAVE_POOL_SEPOLIA = markets.AaveV3Sepolia.POOL;
 const WETH_GATEWAY_SEPOLIA = markets.AaveV3Sepolia.WETH_GATEWAY;
 
+const DEADLINE = Math.floor(Date.now() / 1000 + 3600).toString();
+
 const test = async (address: any) => {
   // const { signTypedData } = useSignTypedData();
   // const { signMessage } = useSignMessage();
@@ -63,7 +65,6 @@ const test = async (address: any) => {
     const txResponse = await signer.sendTransaction({
       ...txData,
       value: txData.value ? BigNumber.from(txData.value) : undefined,
-      gasLimit: ethers.utils.parseUnits('0.1', 'ether'),
     });
   }
 
@@ -77,48 +78,72 @@ const test = async (address: any) => {
   const executePlan = async () => {
     const dataToSign = await pool.signERC20Approval({
       user: address,
-      reserve: USDC_SEPOLIA,
+      reserve: USDT_SEPOLIA,
       amount: "1",
-      deadline: Math.floor(Date.now() / 1000 + 3600).toString(),
+      deadline: DEADLINE,
     });
-  
+
     console.log(dataToSign);
-  
+
     const signature = await provider.send("eth_signTypedData_v4", [
       address,
       dataToSign,
     ]);
-  
-    console.log(signature);
-  
-    const txs: EthereumTransactionTypeExtended[] = await pool.supplyWithPermit({
-      user: address,
-      reserve: USDC_SEPOLIA,
-      amount: "1",
-      signature: signature,
-      onBehalfOf: address,
-      deadline: Math.floor(Date.now() / 1000 + 3600).toString(),
-    });
 
-    
-    // const txs: EthereumTransactionTypeExtended[] = await pool.supply({
+    console.log(signature);
+
+    const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    await wait(2000);
+    console.log("done");
+
+    // const txs: EthereumTransactionTypeExtended[] = await pool.supplyWithPermit({
     //   user: address,
     //   reserve: USDC_SEPOLIA,
     //   amount: "1",
+    //   signature: signature,
     //   onBehalfOf: address,
+    //   deadline: DEADLINE,
+    // });
+
+    // const txs: EthereumTransactionTypeExtended[] = await pool.supply({
+    //   user: address,
+    //   reserve: USDC_SEPOLIA,
+    //   amount: "10",
+    //   onBehalfOf: address,
+    // });
+
+    const txs: EthereumTransactionTypeExtended[] = await pool.borrow({
+      user: address,
+      reserve: USDT_SEPOLIA,
+      amount: "1",
+      interestRateMode: InterestRate.Variable,
+      onBehalfOf: address,
+    });
+
+    // const txs: EthereumTransactionTypeExtended[] = await pool.repayWithPermit({
+    //   user: address,
+    //   reserve: GHO_SEPOLIA,
+    //   amount: "1",
+    //   signature: signature,
+    //   onBehalfOf: address,
+    //   deadline: DEADLINE,
+    //   interestRateMode: InterestRate.Variable,
+    // });
+
+    // const txs: EthereumTransactionTypeExtended[] = await pool.repay({
+    //   user: address,
+    //   reserve: GHO_SEPOLIA,
+    //   amount: "1",
+    //   onBehalfOf: address,
+    //   interestRateMode: InterestRate.Variable,
     // });
 
     console.log(txs);
 
-    // const txs: EthereumTransactionTypeExtended[] = await pool.borrow({
-    //   user: address,
-    //   reserve: GHO_SEPOLIA,
-    //   amount: "1",
-    //   interestRateMode: InterestRate.Variable,
-    //   onBehalfOf: address,
-    // });
-
-    submitTransaction({ provider: provider, tx: txs[0] });
+    await submitTransaction({ provider: provider, tx: txs[0] });
+    // setTimeout(async () => {
+    //   await submitTransaction({ provider: provider, tx: txs[1] });
+    // }, 45000);
   };
 
   executePlan().catch((error) => {

@@ -18,6 +18,7 @@ import {
 } from "@aave/math-utils";
 import dayjs from "dayjs";
 import { useAccount, useSignTypedData, useSignMessage } from "wagmi";
+import { useEffect, useState } from "react";
 
 // Make sure that this component is wrapped with ConnectKitProvider
 const MyComponent = () => {
@@ -40,41 +41,129 @@ const WETH_GATEWAY_SEPOLIA = markets.AaveV3Sepolia.WETH_GATEWAY;
 
 const DEADLINE = Math.floor(Date.now() / 1000 + 3600).toString();
 
-const test = async (address: any) => {
-  // const { signTypedData } = useSignTypedData();
-  // const { signMessage } = useSignMessage();
-  const provider = new ethers.providers.Web3Provider((window as any).ethereum);
-  const signer = provider.getSigner();
-  console.log(provider);
-  console.log(signer);
-  console.log(await signer.getAddress());
-  console.log(address);
+const [pool, setPool] = useState<any>(null);
+const [provider, setProvider] = useState<any>(null);
 
-  async function submitTransaction({
-    provider,
-    tx,
-  }: {
-    provider: ethers.providers.Web3Provider;
-    tx: EthereumTransactionTypeExtended;
-  }) {
-    console.log(tx);
-    const extendedTxData = await tx.tx();
-    console.log(tx, extendedTxData);
-    const { from, ...txData } = extendedTxData;
-    const signer = provider.getSigner(from);
-    const txResponse = await signer.sendTransaction({
-      ...txData,
-      value: txData.value ? BigNumber.from(txData.value) : undefined,
-    });
-  }
+useEffect(() => {
+  const provider = new ethers.providers.Web3Provider((window as any).ethereum);
 
   const pool = new Pool(provider, {
     POOL: AAVE_POOL_SEPOLIA,
     WETH_GATEWAY: WETH_GATEWAY_SEPOLIA,
   });
 
+  console.log(provider);
   console.log(pool);
 
+  setPool(pool);
+  setProvider(provider);
+}, []);
+
+async function submitTransaction({
+  provider,
+  tx,
+}: {
+  provider: ethers.providers.Web3Provider;
+  tx: EthereumTransactionTypeExtended;
+}) {
+  console.log(tx);
+  const extendedTxData = await tx.tx();
+  console.log(tx, extendedTxData);
+  const { from, ...txData } = extendedTxData;
+  const signer = provider.getSigner(from);
+  const txResponse = await signer.sendTransaction({
+    ...txData,
+    value: txData.value ? BigNumber.from(txData.value) : undefined,
+  });
+  return txResponse;
+}
+
+async function approveAndSign({
+  pool,
+  provider,
+  address,
+  asset,
+  amount,
+}: {
+  pool: any;
+  provider: ethers.providers.Web3Provider;
+  address: string;
+  asset: string;
+  amount: string;
+}) {
+  const dataToSign = await pool.signERC20Approval({
+    user: address,
+    reserve: asset,
+    amount: amount,
+    deadline: DEADLINE,
+  });
+
+  console.log(dataToSign);
+
+  const signature = await provider.send("eth_signTypedData_v4", [
+    address,
+    dataToSign,
+  ]);
+
+  console.log(signature);
+
+  return signature;
+}
+
+const supply = async (address: string, asset: string, amount: string) => {
+  const signature = await approveAndSign({
+    pool: pool,
+    provider: provider,
+    address: address,
+    asset: asset,
+    amount: amount,
+  });
+
+  const wait = (ms: number) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
+  await wait(2000);
+  console.log("done");
+
+  const txs: EthereumTransactionTypeExtended[] = await pool.supplyWithPermit({
+    user: address,
+    reserve: asset,
+    amount: amount,
+    signature: signature,
+    onBehalfOf: address,
+    deadline: DEADLINE,
+  });
+
+  submitTransaction({ provider: provider, tx: txs[0] });
+};
+
+const repay = async (address: string, asset: string, amount: string) => {
+  const signature = await approveAndSign({
+    pool: pool,
+    provider: provider,
+    address: address,
+    asset: asset,
+    amount: amount,
+  });
+
+  const wait = (ms: number) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
+  await wait(2000);
+  console.log("done");
+
+  const txs: EthereumTransactionTypeExtended[] = await pool.repayWithPermit({
+      user: address,
+      reserve: asset,
+      amount: amount,
+      signature: signature,
+      onBehalfOf: address,
+      deadline: DEADLINE,
+      interestRateMode: InterestRate.Variable,
+    });
+
+  submitTransaction({ provider: provider, tx: txs[0] });
+};
+
+const test = async (address: any) => {
   const executePlan = async () => {
     const dataToSign = await pool.signERC20Approval({
       user: address,
@@ -92,7 +181,8 @@ const test = async (address: any) => {
 
     console.log(signature);
 
-    const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    const wait = (ms: number) =>
+      new Promise((resolve) => setTimeout(resolve, ms));
     await wait(2000);
     console.log("done");
 
@@ -153,22 +243,49 @@ const test = async (address: any) => {
 
 const IndexPage: NextPage = () => {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: "100vw",
-        height: "100vh",
-      }}
-    >
-      Hi there!
-      <ConnectKitButton />
-      <button
-        onClick={() => test("0x039b882C4aF8Dc66c906dA6a44c6e2A561BB5223")}
+    <div>
+      <div className="flex items-center flex-col flex-grow pt-10">
+        <div className="px-5">
+          <h1 className="text-center mb-8">
+            <span className="block text-2xl mb-2">Welcome to</span>
+            <span className="block text-4xl font-bold">Scaffold-ETH 2</span>
+          </h1>
+          <p className="text-center text-lg">
+            Get started by editing{" "}
+            <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
+              packages/nextjs/pages/index.tsx
+            </code>
+          </p>
+          <p className="text-center text-lg">
+            Edit your smart contract{" "}
+            <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
+              YourContract.sol
+            </code>{" "}
+            in{" "}
+            <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
+              packages/hardhat/contracts
+            </code>
+          </p>
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: "100vw",
+          height: "100vh",
+        }}
       >
-        Test
-      </button>
+        Hi there!
+        <ConnectKitButton />
+        <button
+          onClick={() => test("0x039b882C4aF8Dc66c906dA6a44c6e2A561BB5223")}
+        >
+          Test
+        </button>
+      </div>
     </div>
   );
 };

@@ -4,6 +4,8 @@ import { WagmiConfig, createConfig } from "wagmi";
 import { mainnet, sepolia, polygon, optimism, arbitrum } from "wagmi/chains";
 import { ConnectKitProvider, getDefaultConfig } from "connectkit";
 
+import "../styles/globals.css";
+
 const chains = [mainnet, sepolia, polygon, optimism, arbitrum];
 
 const config = createConfig(
